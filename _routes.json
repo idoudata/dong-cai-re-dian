@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": ["/internal-render/*"],
+  "headers": [
+    {
+      "source": "**/*.{html,css,js,png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot}",
+      "headers": {
+        "Cache-Control": "public, max-age=86400, immutable"
+      }
+    },
+    {
+      "source": "/internal-render/*",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "HX-Request": "true"
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "idou-hot-news",
+  "version": "1.0.0",
+  "description": "东财热点数据网关",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "hono": "^4.5.0"
+  },
+  "devDependencies": {
+    "vite": "^6.5.0"
+  }
+}

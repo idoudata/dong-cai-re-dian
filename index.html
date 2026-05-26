@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>市场热点</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+    <style>
+        * { font-size: 11px; }
+        .iframe-wrapper {
+            filter: invert(1) hue-rotate(180deg);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: block;
+        }
+        .hot-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .hot-list::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 3px;
+        }
+        .hot-list::-webkit-scrollbar-track {
+            background-color: #1F2937;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-white" style="background-color: #1e232d;">
+
+    <div id="modal" class="modal">
+        <div class="fixed inset-0 flex items-center justify-center p-4" id="modalOverlay">
+            <div class="bg-gray-900 rounded-lg w-full max-w-6xl h-[80vh] relative">
+                <button type="button" onclick="closeModal()" class="absolute right-4 top-4 text-white bg-red-600 rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-700 z-50">
+                    ×
+                </button>
+                <div class="iframe-wrapper w-full h-full">
+                    <iframe id="detailFrame" src="" class="w-full h-full rounded-lg"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <div>
+                <h2 class="text-xl font-bold mb-4 text-white border-b border-gray-700 pb-2">今日热点</h2>
+                <div 
+                    id="todayHot" 
+                    class="space-y-4"
+                    hx-get="/internal-render/today-hot"
+                    hx-trigger="load"
+                    hx-target="#todayHot"
+                >
+                    <div style="color:#cccccc;text-align:center;padding:20px;">数据加载中...</div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-xl font-bold mb-4 text-white border-b border-gray-700 pb-2">预期热点</h2>
+                <div 
+                    id="expectedHot" 
+                    class="space-y-4"
+                    hx-get="/internal-render/expected-hot"
+                    hx-trigger="load"
+                    hx-target="#expectedHot"
+                >
+                    <div style="color:#cccccc;text-align:center;padding:20px;">数据加载中...</div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-xl font-bold mb-4 text-white border-b border-gray-700 pb-2">全部热点题材</h2>
+                <div 
+                    id="allThemes" 
+                    class="hot-list space-y-2 h-[calc(100vh-120px)] overflow-y-auto pr-2"
+                    hx-get="/internal-render/all-themes?page=1"
+                    hx-trigger="load"
+                    hx-target="#allThemes"
+                >
+                    <div style="color:#cccccc;text-align:center;padding:20px;">数据加载中...</div>
+                </div>
+                <div id="loading" class="text-center py-4 hidden">
+                    <span class="text-gray-400">加载中...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+
+        function openModal(themeCode) {
+            const modal = document.getElementById('modal');
+            const iframe = document.getElementById('detailFrame');
+            iframe.src = `https://emrnweb.eastmoney.com/investment/ThemeDetailV2?themeCode=${themeCode}`;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            const iframe = document.getElementById('detailFrame');
+            modal.classList.remove('active');
+            iframe.src = '';
+            document.body.style.overflow = '';
+        }
+
+        function initializeModalEvents() {
+            const modalOverlay = document.getElementById('modalOverlay');
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        }
+
+        document.getElementById('allThemes').addEventListener('scroll', function() {
+            const container = document.getElementById('allThemes');
+            if (container.scrollHeight - container.scrollTop <= container.clientHeight + 100) {
+                currentPage++;
+                const newDiv = document.createElement('div');
+                newDiv.setAttribute('hx-get', `/internal-render/all-themes?page=${currentPage}`);
+                newDiv.setAttribute('hx-trigger', 'once');
+                newDiv.setAttribute('hx-swap', 'beforeend');
+                newDiv.setAttribute('hx-target', '#allThemes');
+                container.appendChild(newDiv);
+                htmx.process(newDiv);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeModalEvents();
+        });
+    </script>
+</body>
+</html>
