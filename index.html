@@ -149,6 +149,62 @@
             }
         });
 
+        (function() {
+            const blockDevTools = function() {
+                const threshold = 160;
+                let lastTime = new Date().getTime();
+                
+                const check = function() {
+                    if (new Date().getTime() - lastTime < 1000) {
+                        window.location.href = 'about:blank';
+                        return;
+                    }
+                    lastTime = new Date().getTime();
+                    
+                    if (window.innerHeight - window.outerHeight > threshold || 
+                        window.innerWidth - window.outerWidth > threshold) {
+                        window.location.href = 'about:blank';
+                    }
+                    
+                    requestAnimationFrame(check);
+                };
+                
+                check();
+            };
+
+            const blockRightClick = function(e) {
+                e.preventDefault();
+                return false;
+            };
+
+            const blockKeys = function(e) {
+                if (e.key === 'F12' || 
+                    (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+                    (e.ctrlKey && e.key === 'U')) {
+                    e.preventDefault();
+                    return false;
+                }
+            };
+
+            const antiDebug = function() {
+                setInterval(function() {
+                    (function() {
+                        const a = new Date();
+                        debugger;
+                        const b = new Date();
+                        if (b - a > 100) {
+                            window.location.href = 'about:blank';
+                        }
+                    })();
+                }, 1000);
+            };
+
+            document.addEventListener('contextmenu', blockRightClick);
+            document.addEventListener('keydown', blockKeys);
+            blockDevTools();
+            antiDebug();
+        })();
+
         document.addEventListener('DOMContentLoaded', function() {
             initializeModalEvents();
         });

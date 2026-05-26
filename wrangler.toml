@@ -1,0 +1,34 @@
+name = "idou-hot-news"
+main = "functions/index.js"
+compatibility_date = "2026-05-26"
+
+[vars]
+# 上游数据源配置 - 生产环境
+EM_BASE_URL = "https://emcfgdata.eastmoney.com"
+CLIENT_VERSION = "8.3"
+CLIENT_TYPE = "cfw"
+
+[env.preview]
+name = "idou-hot-news-preview"
+[env.preview.vars]
+EM_BASE_URL = "https://emcfgdata.eastmoney.com"
+
+[env.production]
+name = "idou-hot-news-production"
+[env.production.vars]
+EM_BASE_URL = "https://emcfgdata.eastmoney.com"
+
+[triggers]
+crons = []
+
+[build]
+command = "pnpm run build"
+watch_dir = ["src"]
+
+[experimental]
+durable_objects = []
+r2_buckets = []
+
+[deploy]
+workers_dev = true
+route = ""

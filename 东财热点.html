@@ -1,0 +1,319 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>市场热点</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { font-size: 11px; }
+        .iframe-wrapper {
+            filter: invert(1) hue-rotate(180deg);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: block;
+        }
+        .hot-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .hot-list::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 3px;
+        }
+        .hot-list::-webkit-scrollbar-track {
+            background-color: #1F2937;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-white" style="background-color: #1e232d;">
+
+    <div id="modal" class="modal">
+        <div class="fixed inset-0 flex items-center justify-center p-4" id="modalOverlay">
+            <div class="bg-gray-900 rounded-lg w-full max-w-6xl h-[80vh] relative">
+                <button type="button" onclick="closeModal()" class="absolute right-4 top-4 text-white bg-red-600 rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-700 z-50">
+                    ×
+                </button>
+                <div class="iframe-wrapper w-full h-full">
+                    <iframe id="detailFrame" src="" class="w-full h-full rounded-lg"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <div>
+                <h2 class="text-xl font-bold mb-4 text-white border-b border-gray-700 pb-2">今日热点</h2>
+                <div id="todayHot" class="space-y-4">
+
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-xl font-bold mb-4 text-white border-b border-gray-700 pb-2">预期热点</h2>
+                <div id="expectedHot" class="space-y-4">
+
+                </div>
+            </div>
+
+
+            <div>
+                <h2 class="text-xl font-bold mb-4 text-white border-b border-gray-700 pb-2">全部热点题材</h2>
+                <div id="allThemes" class="hot-list space-y-2 h-[calc(100vh-120px)] overflow-y-auto pr-2">
+
+                </div>
+                <div id="loading" class="text-center py-4 hidden">
+                    <span class="text-gray-400">加载中...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        let currentPage = 1;
+        let isLoading = false;
+        let hasMore = true;
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function openModal(themeCode) {
+            const modal = document.getElementById('modal');
+            const iframe = document.getElementById('detailFrame');
+            iframe.src = `https://emrnweb.eastmoney.com/investment/ThemeDetailV2?themeCode=${themeCode}`;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            const iframe = document.getElementById('detailFrame');
+            modal.classList.remove('active');
+            iframe.src = '';
+            document.body.style.overflow = '';
+        }
+
+        async function fetchData(url, isExpectedHot = false, pageNum = 1) {
+            try {
+                const params = {
+                    args: isExpectedHot ? {} : { pageSize: 30, pageNum, sort: -1 },
+                    client: "web",
+                    clientVersion: "8.3",
+                    clientType: "cfw",
+                    randomCode: isExpectedHot ? "qwRtDlKIulaJS88Y" : "QMvrYSV2BSS4uDmf",
+                    timestamp: Date.now()
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json;charset=UTF-8',
+                        'Accept': 'application/json, text/plain, */*',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                        'Origin': 'https://emrnweb.eastmoney.com',
+                        'Referer': 'https://emrnweb.eastmoney.com/'
+                    },
+                    body: JSON.stringify(params)
+                });
+                
+                const data = await response.json();
+                if (data.code === 0) {
+                    return data.data;
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                return null;
+            }
+        }
+
+        function renderTodayHot(topics) {
+            if (!topics) {
+                document.getElementById('todayHot').innerHTML = '<div class="text-red-500">获取数据失败</div>';
+                return;
+            }
+
+            const html = topics.map(topic => `
+                <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-bold">${topic.themeName}</h3>
+                        <span class="text-lg font-bold ${topic.f3 >= 0 ? 'text-red-500' : 'text-green-500'}">
+                            ${topic.f3}% ${topic.f3 >= 0 ? '↑' : '↓'}
+                        </span>
+                    </div>
+                    
+                    <p class="text-gray-400 text-sm mb-4 cursor-pointer hover:text-blue-400" 
+                       onclick="openModal('${topic.themeCode}')">${topic.newsTitle}</p>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        ${topic.stock.map(stock => `
+                            <div class="bg-gray-800 p-2 rounded">
+                                <div class="text-sm">${stock.name}</div>
+                                <div class="text-sm ${stock.f3 >= 0 ? 'text-red-500' : 'text-green-500'}">
+                                    ${stock.f3}%
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('todayHot').innerHTML = html;
+        }
+
+        function renderExpectedHot(topics) {
+            if (!topics) {
+                document.getElementById('expectedHot').innerHTML = '<div class="text-red-500">获取数据失败</div>';
+                return;
+            }
+
+            const html = topics.map(topic => `
+                <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-400 text-sm">${formatDate(topic.date)}</span>
+                        ${topic.isNew ? '<span class="px-2 py-1 bg-blue-600 text-xs rounded-full">新</span>' : ''}
+                    </div>
+                    <p class="text-sm mb-3">${topic.summary}</p>
+                    <div class="space-y-2">
+                        ${topic.theme.map(theme => `
+                            <div class="flex justify-between items-center bg-gray-800 p-2 rounded cursor-pointer hover:bg-gray-700"
+                                 onclick="openModal('${theme.code}')">
+                                <span class="text-sm">${theme.name}</span>
+                                <span class="text-sm ${theme.f3 >= 0 ? 'text-red-500' : 'text-green-500'}">
+                                    ${theme.f3}% ${theme.f3 >= 0 ? '↑' : '↓'}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('expectedHot').innerHTML = html;
+        }
+
+        function renderAllThemes(themes, append = false) {
+            const container = document.getElementById('allThemes');
+            const html = themes.map(theme => `
+                <div class="bg-gray-900 rounded-lg p-3 border border-gray-800 cursor-pointer hover:bg-gray-800"
+                     onclick="openModal('${theme.themeCode}')">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-medium">${theme.themeName}</span>
+                            ${theme.fex3 > 0 ? `
+                                <span class="px-2 py-0.5 bg-gray-800 rounded-full text-xs">
+                                    ${theme.fex3}家涨停
+                                </span>
+                            ` : ''}
+                        </div>
+                        <span class="text-sm font-bold ${theme.bf3 >= 0 ? 'text-red-500' : 'text-green-500'}">
+                            ${theme.bf3}%
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center mt-2 text-xs text-gray-400">
+                        <span>领涨：${theme.securityName}</span>
+                        <span class="${theme.f3 >= 0 ? 'text-red-500' : 'text-green-500'}">
+                            ${theme.f3}%
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+
+            if (append) {
+                container.innerHTML += html;
+            } else {
+                container.innerHTML = html;
+            }
+        }
+
+        async function loadMoreThemes() {
+            if (isLoading || !hasMore) return;
+            
+            isLoading = true;
+            document.getElementById('loading').classList.remove('hidden');
+            
+            const data = await fetchData('https://emcfgdata.eastmoney.com/api/themeInvest/getThemeList', false, currentPage);
+            
+            if (data && data.list) {
+                renderAllThemes(data.list, currentPage > 1);
+                hasMore = currentPage * 30 < data.total;
+                currentPage++;
+            }
+            
+            isLoading = false;
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+
+        const handleScroll = debounce(function() {
+            const container = document.getElementById('allThemes');
+            if (container.scrollHeight - container.scrollTop <= container.clientHeight + 100) {
+                loadMoreThemes();
+            }
+        }, 200);
+
+        function initializeModalEvents() {
+
+            const modalOverlay = document.getElementById('modalOverlay');
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        }
+
+        async function initialize() {
+            const [todayData, expectedData] = await Promise.all([
+                fetchData('https://emcfgdata.eastmoney.com/api/themeInvest/getTodayChance', false),
+                fetchData('https://emcfgdata.eastmoney.com/api/themeInvest/getExpectHot', true)
+            ]);
+
+            renderTodayHot(todayData);
+            renderExpectedHot(expectedData);
+            loadMoreThemes();
+
+
+            document.getElementById('allThemes').addEventListener('scroll', handleScroll);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initialize();
+            initializeModalEvents();
+        });
+    </script>
+</body>
+</html>
